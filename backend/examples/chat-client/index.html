@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="ko">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>1:1 Chat Test Client — Refined</title>
+        <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
+        <style>
+            :root {
+                --bg: #0b1020;
+                --panel: #121931;
+                --muted: #7b89b6;
+                --text: #e6ecff;
+                --accent: #6aa2ff;
+                --accent-2: #7af;
+                --danger: #ff7a7a;
+                --ok: #5ccd8c;
+                --line: #243055;
+            }
+            * {
+                box-sizing: border-box;
+            }
+            body {
+                margin: 0;
+                background: linear-gradient(180deg, var(--bg), #0e1730);
+                color: var(--text);
+                font-family:
+                    system-ui,
+                    -apple-system,
+                    Segoe UI,
+                    Roboto,
+                    Helvetica,
+                    Arial,
+                    sans-serif;
+            }
+            .container {
+                max-width: 1000px;
+                margin: 24px auto;
+                padding: 0 16px;
+            }
+            h1 {
+                font-size: 22px;
+                margin: 0 0 16px;
+                letter-spacing: 0.2px;
+            }
+            .grid {
+                display: grid;
+                grid-template-columns: 340px 1fr;
+                gap: 16px;
+            }
+            .card {
+                background: var(--panel);
+                border: 1px solid var(--line);
+                border-radius: 14px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+                overflow: hidden;
+            }
+            .card .hd {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 12px 14px;
+                border-bottom: 1px solid var(--line);
+                background: rgba(255, 255, 255, 0.02);
+            }
+            .card .hd strong {
+                font-weight: 700;
+                font-size: 14px;
+            }
+            .card .bd {
+                padding: 14px;
+            }
+            label {
+                display: block;
+                color: #b9c5ef;
+                font-size: 12px;
+                margin: 10px 0 6px;
+            }
+            input,
+            textarea,
+            button,
+            select {
+                font: inherit;
+            }
+            input,
+            textarea,
+            select {
+                width: 100%;
+                padding: 10px 12px;
+                border-radius: 10px;
+                border: 1px solid var(--line);
+                background: #0f152b;
+                color: var(--text);
+                outline: none;
+            }
+            input:focus,
+            textarea:focus,
+            select:focus {
+                border-color: var(--accent);
+            }
+            textarea {
+                min-height: 80px;
+                resize: vertical;
+            }
+            .row {
+                display: flex;
+                gap: 8px;
+            }
+            .btn {
+                padding: 10px 12px;
+                border-radius: 10px;
+                border: 1px solid var(--line);
+                background: #0e1531;
+                color: var(--text);
+                cursor: pointer;
+            }
+            .btn:hover {
+                filter: brightness(1.08);
+            }
+            .btn.primary {
+                background: linear-gradient(180deg, #2a5cff, #1746c7);
+                border-color: #1746c7;
+            }
+            .btn.danger {
+                background: linear-gradient(180deg, #c73f3f, #992b2b);
+                border-color: #992b2b;
+            }
+            .btn.ghost {
+                background: #0f162f;
+            }
+            .btn:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+            .status {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                padding: 6px 10px;
+                border-radius: 999px;
+                border: 1px solid var(--line);
+                font-size: 12px;
+            }
+            .dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+            }
+            .dot.ok {
+                background: var(--ok);
+            }
+            .dot.err {
+                background: var(--danger);
+            }
+            .pill {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                padding: 4px 8px;
+                border-radius: 999px;
+                background: #0d1531;
+                border: 1px solid var(--line);
+                font-size: 12px;
+                color: var(--muted);
+            }
+
+            /* Chat area */
+            .chat {
+                display: flex;
+                flex-direction: column;
+                height: 560px;
+            }
+            .msglist {
+                flex: 1;
+                overflow: auto;
+                padding: 12px;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                background: repeating-linear-gradient(
+                    180deg,
+                    rgba(255, 255, 255, 0.012) 0 32px,
+                    rgba(255, 255, 255, 0.02) 32px 33px
+                );
+            }
+            .bubble {
+                max-width: 70%;
+                padding: 10px 12px;
+                border-radius: 14px;
+                line-height: 1.35;
+                word-break: break-word;
+                white-space: pre-wrap;
+                border: 1px solid var(--line);
+            }
+            .me {
+                align-self: flex-end;
+            }
+            .me .bubble {
+                background: rgba(110, 160, 255, 0.1);
+                border-color: #294079;
+            }
+            .other {
+                align-self: flex-start;
+            }
+            .other .bubble {
+                background: #0c1430;
+            }
+            .meta {
+                font-size: 11px;
+                color: var(--muted);
+                margin-top: 4px;
+            }
+            .sys {
+                align-self: center;
+            }
+            .sys .bubble {
+                background: #0c1230;
+                border-style: dashed;
+            }
+            .date-sep {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                color: var(--muted);
+                font-size: 12px;
+            }
+            .date-sep::before,
+            .date-sep::after {
+                content: '';
+                flex: 1;
+                height: 1px;
+                background: var(--line);
+            }
+            .composer {
+                display: flex;
+                gap: 10px;
+                border-top: 1px solid var(--line);
+                padding: 12px;
+                background: rgba(255, 255, 255, 0.02);
+            }
+            .composer textarea {
+                flex: 1;
+                min-height: 48px;
+            }
+
+            .small {
+                font-size: 12px;
+                color: var(--muted);
+            }
+            .flex {
+                display: flex;
+                gap: 8px;
+                align-items: center;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>웹소켓 1:1 채팅 테스트 (개선판)</h1>
+
+            <div class="grid">
+                <!-- Left: Connection / Options -->
+                <section class="card" aria-label="연결 설정">
+                    <div class="hd">
+                        <strong>연결 설정</strong>
+                        <span id="connStatus" class="status"><span class="dot err"></span>Disconnected</span>
+                    </div>
+                    <div class="bd">
+                        <label for="serverUrl">서버 URL</label>
+                        <input id="serverUrl" placeholder="예: http://localhost:3000" />
+
+                        <label for="token">JWT 토큰 <span class="small">(Bearer 제거)</span></label>
+                        <input id="token" placeholder="eyJhbGciOi..." />
+
+                        <label for="recipient">상대 유저명</label>
+                        <input id="recipient" placeholder="예: foo" />
+
+                        <div class="row" style="margin-top: 10px">
+                            <button id="connectBtn" class="btn primary">연결</button>
+                            <button id="disconnectBtn" class="btn danger" disabled>연결해제</button>
+                            <button id="clearBtn" class="btn ghost">화면 지우기</button>
+                        </div>
+
+                        <div class="row" style="margin-top: 10px">
+                            <label for="autoLoad" class="pill"
+                                ><input id="autoLoad" type="checkbox" checked style="margin-right: 6px" /> 연결 시
+                                자동으로 내역 불러오기</label
+                            >
+                            <label for="autoScroll" class="pill"
+                                ><input id="autoScroll" type="checkbox" checked style="margin-right: 6px" /> 자동
+                                스크롤</label
+                            >
+                        </div>
+
+                        <div class="small" style="margin-top: 12px">Tip: 설정은 로컬 저장됩니다.</div>
+                    </div>
+                </section>
+
+                <!-- Right: Chat -->
+                <section class="card" aria-label="채팅">
+                    <div class="hd">
+                        <strong>채팅</strong>
+                        <span id="roomMeta" class="pill">상대 없음</span>
+                    </div>
+                    <div class="chat">
+                        <div id="msglist" class="msglist" aria-live="polite" aria-relevant="additions"></div>
+                        <div class="composer">
+                            <textarea id="message" placeholder="메시지를 입력하고 Ctrl/Cmd+Enter 로 전송"></textarea>
+                            <div class="flex" style="flex-direction: column; align-items: stretch; width: 140px">
+                                <button id="sendBtn" class="btn primary" disabled>보내기</button>
+                                <button id="loadHistoryBtn" class="btn">내역 새로고침</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <section class="card" style="margin-top: 16px" aria-label="이벤트">
+                <div class="hd"><strong>이벤트 로그</strong></div>
+                <div class="bd" id="eventLog" style="max-height: 220px; overflow: auto; white-space: pre-wrap"></div>
+            </section>
+        </div>
+
+        <script>
+            // ---------- Utilities ----------
+            const qs = (sel, p = document) => p.querySelector(sel)
+            const qsa = (sel, p = document) => Array.from(p.querySelectorAll(sel))
+            const fmtTime = (d) => new Date(d).toLocaleTimeString()
+            const fmtDate = (d) => new Date(d).toLocaleDateString()
+            const sameDay = (a, b) => new Date(a).toDateString() === new Date(b).toDateString()
+
+            const storage = {
+                get key() {
+                    return 'chat-test-settings-v2'
+                },
+                load() {
+                    try {
+                        return JSON.parse(localStorage.getItem(this.key) || '{}')
+                    } catch {
+                        return {}
+                    }
+                },
+                save(v) {
+                    localStorage.setItem(this.key, JSON.stringify(v))
+                },
+            }
+
+            const ui = {
+                serverUrl: qs('#serverUrl'),
+                token: qs('#token'),
+                recipient: qs('#recipient'),
+                connectBtn: qs('#connectBtn'),
+                disconnectBtn: qs('#disconnectBtn'),
+                clearBtn: qs('#clearBtn'),
+                sendBtn: qs('#sendBtn'),
+                loadHistoryBtn: qs('#loadHistoryBtn'),
+                message: qs('#message'),
+                msglist: qs('#msglist'),
+                eventLog: qs('#eventLog'),
+                connStatus: qs('#connStatus'),
+                roomMeta: qs('#roomMeta'),
+                autoLoad: qs('#autoLoad'),
+                autoScroll: qs('#autoScroll'),
+            }
+
+            let socket = null
+            let state = {
+                me: null, // socket.id (after connect)
+                server: '',
+                token: '',
+                recipient: '',
+                lastDateLabel: null,
+            }
+
+            function setConnected(connected) {
+                ui.connectBtn.disabled = connected
+                ui.disconnectBtn.disabled = !connected
+                ui.sendBtn.disabled = !connected
+                ui.loadHistoryBtn.disabled = !connected
+                ui.connStatus.innerHTML = connected
+                    ? '<span class="dot ok"></span>Connected'
+                    : '<span class="dot err"></span>Disconnected'
+            }
+
+            function appendEventLine(...args) {
+                const t = new Date().toLocaleTimeString()
+                const msg = args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ')
+                ui.eventLog.textContent += `[${t}] ${msg}\n`
+                ui.eventLog.scrollTop = ui.eventLog.scrollHeight
+            }
+
+            function ensureDateSeparator(at) {
+                const dateStr = fmtDate(at)
+                if (state.lastDateLabel !== dateStr) {
+                    state.lastDateLabel = dateStr
+                    const sep = document.createElement('div')
+                    sep.className = 'date-sep'
+                    sep.textContent = dateStr
+                    ui.msglist.appendChild(sep)
+                }
+            }
+
+            function appendSystem(text) {
+                ensureDateSeparator(Date.now())
+                const wrap = document.createElement('div')
+                wrap.className = 'sys'
+                wrap.innerHTML = `<div class="bubble">${text}</div>`
+                ui.msglist.appendChild(wrap)
+                if (ui.autoScroll.checked) ui.msglist.scrollTop = ui.msglist.scrollHeight
+            }
+
+            function appendMessage({ senderId, recipientId, content, createdAt }, mine = false) {
+                const ts = createdAt || Date.now()
+                ensureDateSeparator(ts)
+
+                const wrap = document.createElement('div')
+                wrap.className = mine ? 'me' : 'other'
+
+                const bubble = document.createElement('div')
+                bubble.className = 'bubble'
+                bubble.textContent = content
+
+                const meta = document.createElement('div')
+                meta.className = 'meta'
+                meta.textContent = `${mine ? '나' : senderId || '상대'} · ${fmtTime(ts)}`
+
+                wrap.appendChild(bubble)
+                wrap.appendChild(meta)
+                ui.msglist.appendChild(wrap)
+                if (ui.autoScroll.checked) ui.msglist.scrollTop = ui.msglist.scrollHeight
+            }
+
+            async function fetchHistory() {
+                const base = state.server.replace(/\/$/, '')
+                const url = `${base}/api/chat/messages/${encodeURIComponent(state.recipient)}`
+                try {
+                    const res = await fetch(url, { headers: { Authorization: `Bearer ${state.token}` } })
+                    if (!res.ok) {
+                        appendSystem(`채팅 내역 불러오기 실패: ${res.status}`)
+                        appendEventLine('history error', res.status, await res.text())
+                        return
+                    }
+                    const data = await res.json()
+                    const items = (data && (data.items || data)) || []
+                    if (!items.length) {
+                        appendSystem('채팅 내역 없음')
+                        return
+                    }
+
+                    // Render newest at bottom
+                    items.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0))
+                    state.lastDateLabel = null
+                    ui.msglist.innerHTML = ''
+                    for (const msg of items) {
+                        const mine = msg.sender?.id === state.me || msg.sender?.username === 'me'
+                        appendMessage(
+                            {
+                                senderId: msg.sender?.id || msg.sender?.username,
+                                recipientId: msg.recipient?.id || msg.recipient?.username,
+                                content: msg.content,
+                                createdAt: msg.createdAt,
+                            },
+                            mine,
+                        )
+                    }
+                    appendSystem(`내역 ${items.length}건 불러옴`)
+                } catch (e) {
+                    appendSystem('채팅 내역 요청 오류')
+                    appendEventLine('history fetch exception', e.message || e)
+                }
+            }
+
+            function persist() {
+                storage.save({
+                    serverUrl: ui.serverUrl.value.trim(),
+                    token: ui.token.value.trim(),
+                    recipient: ui.recipient.value.trim(),
+                    autoLoad: ui.autoLoad.checked,
+                    autoScroll: ui.autoScroll.checked,
+                })
+            }
+
+            function restore() {
+                const s = storage.load()
+                if (s.serverUrl) ui.serverUrl.value = s.serverUrl
+                if (s.token) ui.token.value = s.token
+                if (s.recipient) ui.recipient.value = s.recipient
+                ui.autoLoad.checked = s.autoLoad ?? true
+                ui.autoScroll.checked = s.autoScroll ?? true
+                updateRoomMeta()
+            }
+
+            function updateRoomMeta() {
+                const name = ui.recipient.value.trim()
+                ui.roomMeta.textContent = name ? `상대: ${name}` : '상대 없음'
+            }
+
+            // ---------- Socket ----------
+            function connect() {
+                const base = ui.serverUrl.value.trim()
+                const token = ui.token.value.trim()
+                const recipient = ui.recipient.value.trim()
+                if (!base) return alert('서버 URL을 입력하세요.')
+                if (!token) return alert('JWT 토큰을 입력하세요.')
+                if (!recipient) return alert('상대 유저명을 입력하세요.')
+
+                state.server = base
+                state.token = token
+                state.recipient = recipient
+                persist()
+
+                const url = base.replace(/\/$/, '') + '/chat'
+                try {
+                    socket = io(url, { transports: ['websocket'], auth: { token } })
+                } catch (e) {
+                    appendEventLine('소켓 생성 실패', e.message || e)
+                    return
+                }
+
+                socket.on('connect', () => {
+                    state.me = socket.id
+                    setConnected(true)
+                    appendSystem(`연결됨 (id: ${socket.id})`)
+                    appendEventLine('connect', { id: socket.id })
+                    if (ui.autoLoad.checked) fetchHistory()
+                })
+
+                socket.on('disconnect', (reason) => {
+                    setConnected(false)
+                    appendSystem(`연결해제: ${reason}`)
+                    appendEventLine('disconnect', reason)
+                })
+
+                socket.on('connect_error', (err) => {
+                    setConnected(false)
+                    appendSystem(`연결 오류: ${err.message}`)
+                    appendEventLine('connect_error', err.message)
+                })
+
+                // Custom events (adjust to your server contracts)
+                socket.on('connected', (payload) => {
+                    appendEventLine('connected', payload)
+                })
+                socket.on('error', (msg) => {
+                    appendSystem(`서버 오류: ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`)
+                    appendEventLine('error', msg)
+                })
+
+                socket.on('message:new', (msg) => {
+                    // expected: { sender:{id}, recipient:{id}, content, createdAt }
+                    const mine = msg.sender?.id === state.me
+                    appendMessage(
+                        {
+                            senderId: msg.sender?.id,
+                            recipientId: msg.recipient?.id,
+                            content: msg.content,
+                            createdAt: msg.createdAt,
+                        },
+                        mine,
+                    )
+                    appendEventLine('message:new', msg)
+                })
+
+                socket.on('message:sent', (ack) => {
+                    // server ack for sent message
+                    appendEventLine('message:sent', ack)
+                })
+            }
+
+            function disconnect() {
+                if (socket) {
+                    socket.disconnect()
+                    socket = null
+                }
+            }
+
+            function send() {
+                if (!socket || !socket.connected) return alert('먼저 연결하세요.')
+                const content = ui.message.value.trim()
+                if (!content) return
+                const payload = { id: state.recipient, content }
+                socket.emit('message:send', payload)
+                // Render immediately as mine (optimistic)
+                appendMessage(
+                    { senderId: state.me, recipientId: state.recipient, content, createdAt: Date.now() },
+                    true,
+                )
+                ui.message.value = ''
+                ui.message.focus()
+            }
+
+            // ---------- Event bindings ----------
+            ui.connectBtn.addEventListener('click', connect)
+            ui.disconnectBtn.addEventListener('click', disconnect)
+            ui.clearBtn.addEventListener('click', () => {
+                ui.msglist.innerHTML = ''
+                state.lastDateLabel = null
+                appendSystem('화면을 지웠습니다')
+            })
+            ui.sendBtn.addEventListener('click', send)
+            ui.loadHistoryBtn.addEventListener('click', () => {
+                if (!state.recipient) {
+                    alert('상대 유저명을 입력하세요.')
+                    return
+                }
+                fetchHistory()
+            })
+            ui.message.addEventListener('keydown', (e) => {
+                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                    e.preventDefault()
+                    send()
+                }
+            })
+            ;['serverUrl', 'token', 'recipient'].forEach((id) => {
+                qs('#' + id).addEventListener('change', () => {
+                    updateRoomMeta()
+                    persist()
+                })
+                qs('#' + id).addEventListener('blur', () => {
+                    updateRoomMeta()
+                    persist()
+                })
+            })
+            ui.autoLoad.addEventListener('change', persist)
+            ui.autoScroll.addEventListener('change', persist)
+
+            // Init
+            restore()
+            setConnected(false)
+            appendSystem('클라이언트를 로드했습니다')
+        </script>
+    </body>
+</html>
