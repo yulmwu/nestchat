@@ -6,8 +6,6 @@ import {
     UsernameDto,
     RoleDto,
     PointsDto,
-    PostCountDto,
-    CommentCountDto,
     UserDescriptionDto,
     ProfileImageDto,
     FollowCountDto,
@@ -24,8 +22,6 @@ export class UserResponseDto extends IntersectionType(
     CreatedAtDto,
     RoleDto,
     PointsDto,
-    PostCountDto,
-    CommentCountDto,
     FollowCountDto,
     IsFollowResponseOnlyDto,
 ) {}

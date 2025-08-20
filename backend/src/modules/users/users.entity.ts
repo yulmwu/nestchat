@@ -38,12 +38,6 @@ export class User {
     points: number
 
     @Column({ type: 'int', default: 0 })
-    postCount: number
-
-    @Column({ type: 'int', default: 0 })
-    commentCount: number
-
-    @Column({ type: 'int', default: 0 })
     followersCount: number
 
     @Column({ type: 'int', default: 0 })

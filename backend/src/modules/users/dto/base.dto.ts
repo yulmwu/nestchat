@@ -89,26 +89,6 @@ export class PointsDto {
     points: number
 }
 
-export class PostCountDto {
-    @ApiProperty({
-        description: 'The number of posts created by the user.',
-        example: 10,
-    })
-    @IsInt()
-    @IsNotEmpty()
-    postCount: number
-}
-
-export class CommentCountDto {
-    @ApiProperty({
-        description: 'The number of comments made by the user.',
-        example: 5,
-    })
-    @IsInt()
-    @IsNotEmpty()
-    commentCount: number
-}
-
 export class FollowCountDto {
     @ApiProperty({
         description: 'The number of followers the user has.',
