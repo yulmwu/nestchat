@@ -6,7 +6,8 @@ import * as bcrypt from 'bcrypt'
 import { isFollowingSelect } from 'src/common/utils'
 
 import { RegisterDto } from 'src/modules/auth/dto'
-import { UserResponseDto, UserUpdateRequestDto } from './dto'
+import { UserListResponseDto, UserResponseDto, UserUpdateRequestDto } from './dto'
+import { PaginationDto } from 'src/common/dto'
 
 @Injectable()
 export class UsersService {
@@ -16,6 +17,23 @@ export class UsersService {
         const hashed = await bcrypt.hash(createUserDto.password, 10)
         const user = this.userRepo.create({ ...createUserDto, password: hashed })
         return await this.userRepo.save(user)
+    }
+
+    async findAll(pdto: PaginationDto, meId?: number): Promise<UserListResponseDto> {
+        const query = this.userRepo
+            .createQueryBuilder('user')
+            .orderBy('user.id', 'DESC')
+            .skip((pdto.page! - 1) * pdto.limit!)
+            .take(pdto.limit!)
+
+        const [users, total] = await query.getManyAndCount()
+
+        return {
+            users,
+            total,
+            page: pdto.page!,
+            limit: pdto.limit!,
+        }
     }
 
     async findByUsername(username: string, meId?: number): Promise<UserResponseDto> {

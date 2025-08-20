@@ -1,5 +1,5 @@
 import { ApiProperty, IntersectionType } from '@nestjs/swagger'
-import { CreatedAtDto, IdDto, PaginationResponseDto } from 'src/common/dto'
+import { CreatedAtDto, CursorPaginationResponseDto, IdDto, PaginationResponseDto } from 'src/common/dto'
 
 export class MessageResponseDto extends IntersectionType(CreatedAtDto) {
     @ApiProperty({
@@ -21,7 +21,7 @@ export class MessageResponseDto extends IntersectionType(CreatedAtDto) {
     content: string
 }
 
-export class MessagesResponseDto extends PaginationResponseDto {
+export class MessagesResponseDto extends CursorPaginationResponseDto {
     @ApiProperty({
         description: 'List of messages',
         type: [MessageResponseDto],

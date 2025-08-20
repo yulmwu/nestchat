@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Put, Request, UseGuards } from '@nestjs/common'
+import { Body, Controller, Get, Param, Put, Query, Request, UseGuards } from '@nestjs/common'
 import { UsersService } from './users.service'
 import {
     ApiOperation,
@@ -10,15 +10,25 @@ import {
 } from '@nestjs/swagger'
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard'
 
-import { UsernameDto, UserResponseDto } from './dto'
+import { UserListResponseDto, UsernameDto, UserResponseDto } from './dto'
 import { UserUpdateRequestDto } from './dto/request.dto'
 import { AuthenticatedRequest, MaybeAuthenticatedRequest } from 'src/common/types/express-request.interface'
 import { JwtOptionalAuthGuard } from 'src/common/guards/jwt-optional-auth.guard'
+import { CursorPaginationDto, PaginationDto } from 'src/common/dto'
 
 @ApiTags('Users')
 @Controller('users')
 export class UsersController {
     constructor(private usersService: UsersService) {}
+
+    @UseGuards(JwtOptionalAuthGuard)
+    @ApiBearerAuth()
+    @Get()
+    @ApiOperation({ summary: 'Get all users' })
+    @ApiResponse({ status: 200, description: 'Return all users.', type: UserListResponseDto })
+    findAll(@Query() pdto: PaginationDto, @Request() req: MaybeAuthenticatedRequest): Promise<UserListResponseDto> {
+        return this.usersService.findAll(pdto, req.user?.userId)
+    }
 
     @UseGuards(JwtOptionalAuthGuard)
     @ApiBearerAuth()

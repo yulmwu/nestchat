@@ -4,7 +4,7 @@ import { Repository } from 'typeorm'
 import { Message } from './message.entity'
 import { UsersService } from '../users/users.service'
 import { MessageResponseDto, MessagesResponseDto } from './dto'
-import { IdDto, PaginationDto } from 'src/common/dto'
+import { CursorPaginationDto } from 'src/common/dto'
 import { selectUserBriefColumns } from 'src/common/utils'
 
 @Injectable()
@@ -30,7 +30,11 @@ export class ChatService {
         return this.messageRepo.save(message)
     }
 
-    async getPrivateMessages(recipientId: number, userId: number, pdto: PaginationDto): Promise<MessagesResponseDto> {
+    async getPrivateMessages(
+        recipientId: number,
+        userId: number,
+        pdto: CursorPaginationDto,
+    ): Promise<MessagesResponseDto> {
         const query = this.messageRepo
             .createQueryBuilder('message')
             .leftJoinAndSelect('message.sender', 'sender')
@@ -44,26 +48,18 @@ export class ChatService {
             )
             .select(['message', ...selectUserBriefColumns('sender'), ...selectUserBriefColumns('recipient')])
             .orderBy('message.createdAt', 'DESC')
-            .skip((pdto.page! - 1) * pdto.limit!)
             .take(pdto.limit!)
 
-        const [items, total] = await query.getManyAndCount()
-        return {
-            items,
-            total,
-            page: pdto.page!,
-            limit: pdto.limit!,
+        if (pdto.cursor) {
+            query.andWhere('message.id < :cursor', { cursor: pdto.cursor })
         }
-    }
 
-    async getRecentConversation(userId: number, peerId: number, take = 50) {
-        return this.messageRepo.find({
-            where: [
-                { sender: { id: userId }, recipient: { id: peerId } },
-                { sender: { id: peerId }, recipient: { id: userId } },
-            ],
-            order: { createdAt: 'DESC' },
-            take,
-        })
+        const messages = await query.getMany()
+        const nextCursor = messages.length < pdto.limit! ? null : messages[messages.length - 1].id
+
+        return {
+            items: messages,
+            nextCursor,
+        }
     }
 }

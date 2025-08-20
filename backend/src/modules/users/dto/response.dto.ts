@@ -1,5 +1,5 @@
 import { IntersectionType } from '@nestjs/swagger'
-import { CreatedAtDto, IdDto } from 'src/common/dto'
+import { CreatedAtDto, IdDto, PaginationResponseDto } from 'src/common/dto'
 import {
     EmailDto,
     NicknameDto,
@@ -36,3 +36,7 @@ export class UserBriefResponseDto extends IntersectionType(
     PointsDto,
     FollowCountDto,
 ) {}
+
+export class UserListResponseDto extends IntersectionType(PaginationResponseDto) {
+    users: UserResponseDto[]
+}
